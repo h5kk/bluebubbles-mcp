@@ -10,6 +10,7 @@ import { registerFindMyTools } from "./tools/findmy.js";
 import { registerServerTools } from "./tools/server.js";
 import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
+import { ContactResolver } from "./enrichment.js";
 
 const BLUEBUBBLES_URL = process.env.BLUEBUBBLES_URL;
 const BLUEBUBBLES_PASSWORD = process.env.BLUEBUBBLES_PASSWORD;
@@ -41,14 +42,16 @@ const client = new BlueBubblesClient({
     password: BLUEBUBBLES_PASSWORD
 });
 
+const resolver = new ContactResolver(client);
+
 const server = new McpServer(
     { name: "bluebubbles-mcp", version: "1.0.0" },
     { capabilities: { logging: {} } }
 );
 
 // Register all tools
-registerMessagingTools(server, client);
-registerChatTools(server, client);
+registerMessagingTools(server, client, resolver);
+registerChatTools(server, client, resolver);
 registerContactTools(server, client);
 registerFindMyTools(server, client);
 registerServerTools(server, client);

@@ -1,8 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { BlueBubblesClient } from "../api-client.js";
+import { ContactResolver } from "../enrichment.js";
 
-export function registerMessagingTools(server: McpServer, client: BlueBubblesClient) {
+export function registerMessagingTools(server: McpServer, client: BlueBubblesClient, resolver: ContactResolver) {
     server.tool(
         "bb_send_message",
         "Send a text message to an existing iMessage/SMS chat. Requires the chat GUID (e.g. 'iMessage;-;+1234567890' for a DM or 'iMessage;+;chat123456' for a group chat). Use bb_list_chats to find chat GUIDs.",
@@ -149,6 +150,9 @@ export function registerMessagingTools(server: McpServer, client: BlueBubblesCli
                 if (before !== undefined) body.before = before;
                 if (withChat) body.with = ["chat"];
                 const result = await client.queryMessages(body);
+                if (result.data && Array.isArray(result.data)) {
+                    result.data = await resolver.enrichMessages(result.data) as typeof result.data;
+                }
                 return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
             } catch (error) {
                 return { content: [{ type: "text" as const, text: `Error searching messages: ${error}` }] };
@@ -176,6 +180,9 @@ export function registerMessagingTools(server: McpServer, client: BlueBubblesCli
                 if (after) params.after = after;
                 if (before) params.before = before;
                 const result = await client.getChatMessages(chatGuid, params);
+                if (result.data && Array.isArray(result.data)) {
+                    result.data = await resolver.enrichMessages(result.data) as typeof result.data;
+                }
                 return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
             } catch (error) {
                 return { content: [{ type: "text" as const, text: `Error getting recent messages: ${error}` }] };

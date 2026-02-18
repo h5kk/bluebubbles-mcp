@@ -1,11 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { BlueBubblesClient } from "../api-client.js";
+import { ContactResolver } from "../enrichment.js";
 
-export function registerChatTools(server: McpServer, client: BlueBubblesClient) {
+export function registerChatTools(server: McpServer, client: BlueBubblesClient, resolver: ContactResolver) {
     server.tool(
         "bb_list_chats",
-        "List iMessage/SMS conversations with pagination and sorting. Returns chat GUIDs, display names, participant lists, and last message info. Use this to discover chat GUIDs for other tools.",
+        "List iMessage/SMS conversations with pagination and sorting. Returns chat GUIDs, display names (resolved from contacts), participant lists, and last message info. Use this to discover chat GUIDs for other tools.",
         {
             limit: z.number().optional().describe("Max number of chats to return (default 25)"),
             offset: z.number().optional().describe("Number of chats to skip for pagination"),
@@ -20,6 +21,10 @@ export function registerChatTools(server: McpServer, client: BlueBubblesClient) 
                 if (offset !== undefined) body.offset = offset;
                 if (sort) body.sort = sort;
                 const result = await client.queryChats(body);
+                // Enrich chats with resolved contact names
+                if (result.data && Array.isArray(result.data)) {
+                    result.data = await resolver.enrichChats(result.data) as typeof result.data;
+                }
                 return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
             } catch (error) {
                 return { content: [{ type: "text" as const, text: `Error listing chats: ${error}` }] };
